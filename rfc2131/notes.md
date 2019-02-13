@@ -12,6 +12,9 @@ Provides configuration parameters to Internet hosts.
     5. [Terminology](#15-terminology)
     6. [Design goals](#16-design-goals)
 2. [Protocol Summary](#2-protocol-summary)
+    1. [Configuration parameters repository](#21-configuration-parameters-repository)
+    2. [Dynamic allocation of network addresses](#22-Dynamic-allocation-of-network-addresses)
+3. [The Client-Server Protocol](#3-the-client-server-protocol)
 
 
 ## 1. Introduction
@@ -21,10 +24,10 @@ Provides configuration parameters to Internet hosts.
    DHCP server to a host
 2) a mechanism for allocation of network addresses to hosts.
 
-### Vulnerability
-"A host should not act as a DHCP server unless explicitly configured
-to do so by a sys admin." This is due to specific IP settings. 
-Doesn't say "cannot" act. Possibility for second, malicious, DHCP server
+**:warning: Vulnerability: "A host should not act as a DHCP server unless 
+explicitly configured to do so by a sys admin." This is due to specific 
+IP settings. Doesn't say "cannot" act. 
+Possibility for second, malicious, DHCP server :warning:**
 
 ### Three mechanisms for IP address allocation
 (networks may use one or all of these)
@@ -117,7 +120,101 @@ DHCP must:
      IP config params that it needs in order to operate
 - Change in terminology: changed "vendor extensions" field in 
   BOOTP to "options" field in DHCP
+- New 'client identifier' option, which passes explicit client ID to a DHCP
+  server. Eliminates overloading of the 'chaddr' field in BOOTP. ('chaddr' is
+  used both as hardware address and as a client ID
+- This client ID (chosen by the DHCP client), must be unique within the subnet
+- DHCP clarifies interpretation of 'siaddr' field: address of next server to
+  use in bootstrap. Returned in DHCPOFFER, DHCPACK by server
+- 'options' field is now variable length (312 - 576 octets)
+- DHCP clients can negotiate the use of larger DHCP messages
+- For initial client configuration, DHCP requires use of the client's TCP/IP
+  software. The software SHOULD accept and forward to the IP layer any packets
+  delivered to the client's hardware address before the IP address is
+  configured. DHCP servers and BOOTP relay agents may not be able to deliver
+  DHCP messages to clients that cannot accept hardware unicast datagrams before
+  the TCP/IP software is configured
+- To work around this, DHCP uses the 'flags' field. The leftmost bit is
+  defined as the BROADCAST (B) flag. Remaining bits must be set to 0 at this
+  point and are reserved for future use
 
-Figure 1:  Format of a DHCP message
+## 2.1 Configuration parameters repository
+- In this stage, DHCP provides persistent storage of network parameters for
+  network clients. All this means is it creates a key/value pair where the key
+  a unique identifier for the client (e.g. IP-subnet-number and
+  hardware-address) and the value is the set of configuration parameters for
+  that client.
+
+## 2.2 Dynamic allocation of network addresses
+- Client requests the use of an address for some period of time (a "lease")
+- The collection of DHCP servers guarentees not to reallocate that address
+  within the requested time and attempts to return the same network address
+  each time the client requests an address
+- Client may extend lease with subsequent requests
+- Client may issue a message to release the address back to the server
+- Client may ask for a permanent assignment by asking for an infinite lease
+- Even when assigning "permanent" addresses, a server may choose to give out
+  lengthy but non-infinite leases in case client eventually retires
+- Sometimes network addresses might need to be reassigned due to exhaustion of
+  available addresses. In such cases, the allocation mechanism will reuse
+  addresses whose lease has expired. The server SHOULD probe the reused addres
+  before allocating, e.g., with an ICMP echo request, and the client SHOULD
+  probe the newly received address, e.g., with ARP
+
+# 3. The Client-Server Protocol
+- DHCP uses the BOOTP message format
+- The 'op' field of each DHCP message sent from client to server contains
+  BOOTREQUEST
+- The 'op' field of each DHCP message sent from server to client contains
+  BOOTREPLY
+- First four octets of the 'options' field of DHCP message contain the decimal
+  values 99, 130, 83, and 99
+- The "DHCP message type" option must be included in every DHCP message
+- Throughout this document, DHCP messages that include a 'DHCP message type'
+  option will be referred to by the type of the message; e.g., a DHCP message
+  with 'DHCP message type' option type 1 will be referred to as a "DHCPDISCOVER"
+  message
+
+## 3.1 Client-server interaction - allocating a network address
+
+1. Client broadcasts a DHCPDISCOVER message on its local physical
+   subnet. DHCPDISCOVER message MAY include options that suggest values for
+   network address and lease duration. BOOTP relay agents may pass the message on
+   to DHCP servers not on the same physical subnet
+2. Each server may respond with a DHCPOFFER message that includes an available
+   network address in the 'yiaddr' field (and other config parameters in DHCP
+   options). Might use BOOTP relay agent if necessary
+3. Client receives one or more DHCPOFFER messages from one or more servers.
+   Client chooses one server from which to request config params, based on
+   config params offered in the DHCPOFFER messages. Then, the client broadcasts
+   a DHCPREQUEST message that MUST include the 'server identifier' option to
+   indicicate which server it has selected. 
+   **:warning: Vulnerability: since this is a broadcast message, couldn't 
+   a malicious DHCP server spoof it's ID to match the configuration parameters 
+   in in the DHCPREQUEST message? :warning:** 
+   The message MAY include other options specifying desired configuration values. 
+   The 'requested IP address'
+   option MUST be set to the value of 'yiaddr' in the DHCP message from the
+   server. In order to ensure that any BOOTP relay agents forward the DHCPREQUEST
+   message to the same set of DHCP servers that received the original DHCPDISCOVER
+   message, the DHCPREQUEST message MUST use the same value int he DHCP message
+   header's 'secs' field and be sent to the same IP broadcast address as the
+   original DHCPDISCOVER message.
+4. Servers receive the DHCPREQUEST broadcast. Non-selected servers use this
+   message as a notification that the client has declined that server's offer.
+   Selected server commits the binding for the client to persistent storage and
+   responds with a DHCPACK message contatining the config params. The 'yiaddr'
+   field in the DHCPACK message is filled in with the selected network address.
+   If the server is unable to satisfy the DHCPREQUEST message, the server SHOULD
+   respond with a DHCPNAK message
+5. Client receives the DHCPACK message with config params. Client SHOULD
+   perform a final check on the params (e.g., ARP for allocated network
+   address), and note the duration of the lease specified in the DHCPACK. 
+
+
+
+
+
+
 
 
