@@ -209,7 +209,32 @@ DHCP must:
    respond with a DHCPNAK message
 5. Client receives the DHCPACK message with config params. Client SHOULD
    perform a final check on the params (e.g., ARP for allocated network
-   address), and note the duration of the lease specified in the DHCPACK. 
+   address), and note the duration of the lease specified in the DHCPACK. At
+   this point, the client is configured. If, after ARP, the client detects that
+   the address is already in use, the client MUST send a DHCPDECLINE message to
+   the server and, after at least 10 seconds, restart the config process. If the
+   client receives a DHCPNAK message, the client restarts the config process. If
+   the client neither receives a DHCPACK or a DHCPNAK, it will retransmit the
+   DHCPREQUEST.
+6. Client may send a DHCPRELEASE message to server to relinquish lease
+
+## 3.2 Client-server interaction - reusing a previously allocated network
+address
+
+If a client wishes to renew a lease, some of the steps above can be omitted.
+
+1. Client broadcasts a DHCPREQUEST message on its local subnet. This includes
+   the client's network address in the 'requested IP address' option. As the
+   client has not received its network address, it MUST NOT fill in the 'ciaddr'
+   field.
+2. Servers with knowledge of the client's config params respond with a DHCPACK
+   message to the client. Servers SHOULD NOT check that the client's network
+address is already in use; the client may respond to ICMP Echo Request messages
+at this point **:warning: Does this mean any DHCP server on the network can
+respond with a DHCPACK? :warning:** 
+If the request is invalid (e.g., the client has moved to a new subnet), 
+servers SHOULD respond with a DHCPNAK message
+
 
 
 
