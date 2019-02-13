@@ -11,7 +11,7 @@ Provides configuration parameters to Internet hosts.
     4. [Requirements](#14-requirements)
     5. [Terminology](#15-terminology)
     6. [Design goals](#16-design-goals)
-2. [Protocol Summary](#2-protocol summary)
+2. [Protocol Summary](#2-protocol-summary)
 
 
 ## 1. Introduction
